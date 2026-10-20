@@ -69,27 +69,37 @@ function home(){$.innerHTML=`<div class="hero"><h1>CS · Level 5</h1><p>Pick a c
 function course(c,tab){const ks=Object.keys(D[c].chapters);
  let body;
  if(tab==='final')body=`<div class="soon"><b>Not yet</b><p class="sub">The final exam section will be added later.</p></div>`;
- else body=`<p class="sub">${tab==='mid'?'Practice with instant feedback. Multiple choice shows why you were wrong; essay questions show the model answer.':'Review summaries: the key points of each chapter, taken from the course textbook.'}</p><div class="grid">${ks.map(k=>`<button class="box" onclick="location.hash='${c}/${tab}/${k}'">ch${k}<small>${tab==='review'?esc((D[c].summary[k]||{}).book||''):cnt(c,k)+' questions'+(best[c+tab+k]?' · best '+best[c+tab+k]+'%':'')}</small></button>`).join('')}<button class="box all" onclick="location.hash='${c}/${tab}/all'">all<small>${tab==='review'?'All chapters in one page':cnt(c,'all')+' questions (shuffled)'+(best[c+tab+'all']?' · best '+best[c+tab+'all']+'%':'')}</small></button></div>`;
+ else body=`<p class="sub">${tab==='mid'?'Practice with instant feedback. Multiple choice shows why you were wrong; essay questions show the model answer.':'Review summaries: the key points of each chapter, taken from the course textbook.'}</p><div class="grid">${ks.map(k=>`<button class="box" onclick="location.hash='${c}/${tab}/${k}'">ch${k}<small>${tab==='review'?esc((D[c].summary[k]||{}).book||''):cnt(c,k)+' questions'+(tab==='mid'&&prog(c,k)?' · '+prog(c,k)+' answered':'')+(best[c+tab+k]?' · best '+best[c+tab+k]+'%':'')}</small></button>`).join('')}<button class="box all" onclick="location.hash='${c}/${tab}/all'">all<small>${tab==='review'?'All chapters in one page':cnt(c,'all')+' questions (shuffled)'+(tab==='mid'&&prog(c,'all')?' · '+prog(c,'all')+' answered':'')+(best[c+tab+'all']?' · best '+best[c+tab+'all']+'%':'')}</small></button></div>`;
  $.innerHTML=topbar("location.hash=''",c,esc(D[c].name))+`<div class="tabs">${['mid','final','review'].map(t=>`<button class="tab ${t===tab?'on':''}" onclick="location.hash='${c}/${t}'">${t}</button>`).join('')}</div>`+body}
 let S;
-function quiz(c,tab,ch){let qs=pool(c,ch);if(ch==='all')qs=shuf(qs);S={c,tab,ch,qs,ans:[],shown:[],ai:{}};drawQuiz()}
+const pk=(c,ch)=>'prog5:'+c+':'+ch, qid=q=>q.ch+'.'+q.n;
+function loadP(c,ch){try{return JSON.parse(localStorage.getItem(pk(c,ch))||'null')}catch(e){return null}}
+function saveP(){try{const {c,ch,qs,ans,shown,notes}=S;localStorage.setItem(pk(c,ch),JSON.stringify({order:qs.map(qid),ans,shown,notes}))}catch(e){}}
+function prog(c,ch){const sv=loadP(c,ch);return sv&&sv.ans?sv.ans.filter(x=>x!=null).length:0}
+function quiz(c,tab,ch){let qs=pool(c,ch),sv=loadP(c,ch);
+ if(sv&&sv.order){const m={};qs.forEach(q=>m[qid(q)]=q);qs=sv.order.map(k=>m[k]).filter(Boolean).concat(qs.filter(q=>!sv.order.includes(qid(q))))}else if(ch==='all')qs=shuf(qs);
+ S={c,tab,ch,qs,ans:(sv&&sv.ans)||[],shown:(sv&&sv.shown)||[],notes:(sv&&sv.notes)||{},ai:{},confirm:false};
+ drawQuiz();
+ if(sv){setTimeout(()=>{const i=S.qs.findIndex((q,i)=>q.t==='mcq'&&S.ans[i]==null);if(i>0){const e=document.getElementById('q'+i);if(e)e.scrollIntoView()}},60)}}
+function askRestart(){if(!S.confirm){S.confirm=true;drawQuiz();setTimeout(()=>{if(S&&S.confirm){S.confirm=false;drawQuiz()}},4000);return}restart()}
+function restart(){try{localStorage.removeItem(pk(S.c,S.ch))}catch(e){}quiz(S.c,'mid',S.ch);scrollTo(0,0)}
 const stat=()=>{const r=S.qs.filter((q,i)=>q.t==='mcq'&&S.ans[i]===q.a).length,a=S.qs.filter((q,i)=>q.t==='mcq'&&S.ans[i]!=null).length;return {r,a,tot:mcqn(S.c,S.ch)}};
 function drawQuiz(keep){const {c,ch,qs,ans,shown}=S,st=stat(),fin=st.a===st.tot&&st.tot>0;
  if(fin)saveBest(c+'mid'+ch,Math.round(st.r/st.tot*100));
- let h=topbar(`location.hash='${c}/mid'`,`${c} · mid · ch${ch}`,`${qs.length} questions`,`<div class="score" id="sc">${st.r}/${st.a}</div>`)+`<div class="bar"><div id="pb" style="width:${st.tot?st.a/st.tot*100:0}%"></div></div>`;
- if(fin)h+=`<div class="res"><b>${st.r}/${st.tot}</b><p class="sub">${Math.round(st.r/st.tot*100)}% — essay questions are not scored</p></div>`;
+ let h=topbar(`location.hash='${c}/mid'`,`${c} · mid · ch${ch}`,`${qs.length} questions · ${st.a}/${st.tot} answered`,`<button class="back" style="width:auto;padding:0 10px;font-size:14px" onclick="askRestart()">${S.confirm?'Tap again to confirm':'↺ Restart'}</button><div class="score" id="sc">${st.r}/${st.a}</div>`)+`<div class="bar"><div id="pb" style="width:${st.tot?st.a/st.tot*100:0}%"></div></div>`;
+ if(fin)h+=`<div class="res"><b>${st.r}/${st.tot}</b><p class="sub">${Math.round(st.r/st.tot*100)}% — essay questions are not scored</p><button class="btn" onclick="restart()">Restart this chapter</button></div>`;
  qs.forEach((q,i)=>{const rev=ans[i]!=null;
   h+=`<div class="q" id="q${i}"><div class="n"><span class="tag">Q${i+1}</span><span class="tag">ch${q.ch}</span>${q.s?'<span class="tag">★ frequent</span>':''}${q.t==='open'?'<span class="tag">essay</span>':''}${q.v?'<span class="tag w">⚠ verify this answer</span>':''}</div>
   ${q.fig?`<div class="fig">${q.fig}</div>`:''}<div class="tx">${esc(q.q)}</div>`;
   if(q.t==='mcq'){h+=q.o.map((o,k)=>{let cl='';if(rev){if(k===q.a)cl='ok';else if(ans[i]===k)cl='no'}return `<button class="opt ${cl}" onclick="pick(${i},${k})"><i></i><span>${esc(o)}</span></button>`}).join('');
    if(rev){const wrong=ans[i]!==q.a;h+=`<div class="exp">${wrong?`❌ Correct answer: <b>${esc(q.o[q.a])}</b>`:'✅ Correct'}${q.e?`<br>${esc(q.e)}`:''}${q.v?'<br>⚠ The source was not sure about this one — double-check it with your instructor.':''}</div>`;
     if(wrong&&S.ai[i])h+=`<div class="exp ai">${esc(S.ai[i])}</div>`}}
-  else h+=`<textarea id="ta${i}" placeholder="Write your answer here (optional)…"></textarea>`+(shown[i]?`<div class="model"><b>Model answer</b>\n${esc(q.a)}${q.v?'\n⚠ verify with your instructor':''}</div>`:`<button class="btn sm" onclick="S.shown[${i}]=1;keepTa();drawQuiz(${i})">Show model answer</button>`);
+  else h+=`<textarea id="ta${i}" oninput="S.notes[${i}]=this.value;saveP()" placeholder="Write your answer here (optional)…">${esc((S.notes||{})[i]||'')}</textarea>`+(shown[i]?`<div class="model"><b>Model answer</b>\n${esc(q.a)}${q.v?'\n⚠ verify with your instructor':''}</div>`:`<button class="btn sm" onclick="S.shown[${i}]=1;keepTa();drawQuiz(${i})">Show model answer</button>`);
   h+='</div>'});
  const tas={};qs.forEach((q,i)=>{const e=document.getElementById('ta'+i);if(e&&e.value)tas[i]=e.value});
  const y=scrollY;$.innerHTML=h;for(const i in tas)document.getElementById('ta'+i).value=tas[i];scrollTo(0,y)}
-function keepTa(){}
-function pick(i,k){if(S.ans[i]!=null)return;S.ans[i]=k;if(k!==S.qs[i].a&&!S.qs[i].e){S.ai[i]='💡 Explaining why this is wrong…';why(i)}drawQuiz()}
+function keepTa(){saveP()}
+function pick(i,k){if(S.ans[i]!=null)return;S.ans[i]=k;saveP();if(k!==S.qs[i].a&&!S.qs[i].e){S.ai[i]='💡 Explaining why this is wrong…';why(i)}drawQuiz()}
 async function why(i){const q=S.qs[i];
  try{const sm=await claude.use('sample');if(!sm)throw 0;
   const r=await sm(`You are a friendly university tutor. A student answered a multiple-choice question wrongly.\nQuestion: ${q.q}\nOptions: ${q.o.map((o,k)=>'ABCDEF'[k]+') '+o).join(' | ')}\nStudent chose: ${'ABCDEF'[S.ans[i]]}) ${q.o[S.ans[i]]}\nCorrect: ${'ABCDEF'[q.a]}) ${q.o[q.a]}${q.e?'\nNote from the answer key: '+q.e:''}\nIn 3-4 short sentences: (1) say why the student's choice is wrong, (2) state the correct answer and explain why it is right. Then add one short sentence in Arabic with the key idea. Plain text only.`,{modelTier:'quick'});
