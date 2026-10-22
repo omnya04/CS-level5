@@ -65,7 +65,7 @@ function route(){const [c,tab,ch]=location.hash.slice(1).split('/');window.scrol
  if(tab==='review')return review(c,ch); if(tab==='final')return course(c,'final'); return quiz(c,tab,ch)}
 addEventListener('hashchange',route);
 const topbar=(back,t,sub,right)=>`<div class="bar0"><div class="top"><button class="back" onclick="${back}">←</button><div class="t">${t}<small>${sub||''}</small></div>${right||''}</div></div>`;
-function home(){$.innerHTML=`<div class="hero"><h1>CS · Level 5</h1><p>Pick a course and start practicing</p></div><div class="grid">${['CS353','CS350','CS351','CS352'].map(c=>{const n=cnt(c,'all');return `<button class="box ${n?'':'dis'}" ${n?`onclick="location.hash='${c}'"`:''}><span class="ic">${IC[c]}</span>${c}<small>${esc(D[c].name)}<br>${n?n+' questions':'Question bank not added yet'}</small></button>`}).join('')}</div>`}
+function home(){$.innerHTML=`<div class="hero"><h1>CS · Level 5</h1><p>Pick a course and start practicing</p><p style="font-size:13px;margin-top:8px">if you find any mistakes, please contact me: telegram:@luvsa</p></div><div class="grid">${['CS353','CS350','CS351','CS352'].map(c=>{const n=cnt(c,'all');return `<button class="box ${n?'':'dis'}" ${n?`onclick="location.hash='${c}'"`:''}><span class="ic">${IC[c]}</span>${c}<small>${esc(D[c].name)}<br>${n?n+' questions':'Question bank not added yet'}</small></button>`}).join('')}</div>`}
 function course(c,tab){const ks=Object.keys(D[c].chapters);
  let body;
  if(tab==='final')body=`<div class="soon"><b>Not yet</b><p class="sub">The final exam section will be added later.</p></div>`;
